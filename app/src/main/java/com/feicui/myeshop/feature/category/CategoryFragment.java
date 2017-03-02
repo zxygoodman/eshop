@@ -1,5 +1,6 @@
 package com.feicui.myeshop.feature.category;
 
+import android.content.Intent;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.view.Menu;
@@ -10,22 +11,20 @@ import android.widget.TextView;
 
 import com.feicui.myeshop.R;
 import com.feicui.myeshop.base.BaseFragment;
-import com.feicui.myeshop.base.wrapper.ToastWrapper;
 import com.feicui.myeshop.base.wrapper.ToolbarWrapper;
+import com.feicui.myeshop.feature.search.SearchGoodsActivity;
+import com.feicui.myeshop.network.ApiPath;
 import com.feicui.myeshop.network.EShopClient;
+import com.feicui.myeshop.network.ResponseEntity;
 import com.feicui.myeshop.network.UICallback;
 import com.feicui.myeshop.network.entity.CategoryPrimary;
 import com.feicui.myeshop.network.entity.CategoryRsp;
-import com.google.gson.Gson;
+import com.feicui.myeshop.network.entity.Filter;
 
-import java.io.IOException;
 import java.util.List;
 
 import butterknife.BindView;
 import butterknife.OnItemClick;
-import okhttp3.Call;
-import okhttp3.Response;
-import okhttp3.ResponseBody;
 
 /**
  * Created by Administrator on 2017/2/24.
@@ -71,31 +70,23 @@ public class CategoryFragment extends BaseFragment {
             updateCategory();
         } else {
             // 去进行网络请求拿到数据
-            Call call = EShopClient.getInstance().getCategory();
-            call.enqueue(new UICallback() {
+            UICallback uiCallback = new UICallback() {
                 @Override
-                public void onFailureInUI(Call call, IOException e) {
-                    ToastWrapper.show("请求失败"+e.getMessage());
-                }
-
-                @Override
-                public void onResponseInUI(Call call, Response response) throws IOException {
-                    if (response.isSuccessful()) {
-                        ResponseBody body = response.body();
-                        CategoryRsp categoryRsp = new Gson().fromJson(body.string(), CategoryRsp.class);
-                        if (categoryRsp.getStatus().isSucceed()) {
-                            mData = categoryRsp.getData();
-                            // 数据有了之后，数据给一级分类，默认选择第一条，二级分类才能展示
-                            updateCategory();
-                        }
+                public void onBusinessResponse(boolean isSucces, ResponseEntity responseEntity) {
+                    if (isSucces) {
+                        CategoryRsp categoryRsp = (CategoryRsp) responseEntity;
+                        mData = categoryRsp.getData();
+                        // 数据有了之后，数据给一级分类，默认选择第一条，二级分类才能展示
+                        updateCategory();
                     }
                 }
-            });
+            };
+            EShopClient.getInstance().enqueue(ApiPath.CATEGORY, null, CategoryRsp.class, uiCallback);
         }
     }
 
     //更新分类数据
-    private void updateCategory(){
+    private void updateCategory() {
         mCategoryAdapter.reset(mData);
         // 切换展示二级分类
         chooseCategory(0);
@@ -103,22 +94,30 @@ public class CategoryFragment extends BaseFragment {
 
     //用于根据一级分类的选项展示二级分类的内容
     private void chooseCategory(int position) {
-        mListCategory.setItemChecked(position,true);
+        mListCategory.setItemChecked(position, true);
         mChildrenAdapter.addAll(mCategoryAdapter.getItem(position).getChildren());
     }
 
     // 点击一级分类：展示相应二级分类
     @OnItemClick(R.id.list_category)
-    public void onItemClick(int position){
+    public void onItemClick(int position) {
         chooseCategory(position);
     }
 
     // 点击二级分类
     @OnItemClick(R.id.list_children)
-    public void onChildrenClick(int position){
-        // TODO: 2017/2/24 会完善到跳转页面的
-        String name = mChildrenAdapter.getItem(position).getName();
-        ToastWrapper.show(name);
+    public void onChildrenClick(int position) {
+        //跳转到搜索页面
+        int categoryId = mChildrenAdapter.getItem(position).getId();
+        navigateToSearch(categoryId);
+    }
+
+    private void navigateToSearch(int categoryId) {
+        // 根据id构建Filter，然后跳转页面
+        Filter filter = new Filter();
+        filter.setCategoryId(categoryId);
+        Intent intent = SearchGoodsActivity.getStartIntent(getContext(), filter);
+        getActivity().startActivity(intent);
     }
 
     private void initToolbar() {
@@ -135,8 +134,11 @@ public class CategoryFragment extends BaseFragment {
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == android.R.id.home) mActivity.onBackPressed();
         if (item.getItemId() == R.id.menu_search) {
-            // TODO: 2017/2/24 跳转到搜索页面
-            ToastWrapper.show("搜索");
+            //跳转到搜索页面
+            int position = mListCategory.getCheckedItemPosition();
+            int id = mCategoryAdapter.getItem(position).getId();
+            navigateToSearch(id);
+            return true;
         }
         return super.onOptionsItemSelected(item);
     }

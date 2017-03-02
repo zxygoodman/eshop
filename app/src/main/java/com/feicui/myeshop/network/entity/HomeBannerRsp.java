@@ -1,5 +1,6 @@
 package com.feicui.myeshop.network.entity;
 
+import com.feicui.myeshop.network.ResponseEntity;
 import com.google.gson.annotations.SerializedName;
 
 import java.util.List;
@@ -7,15 +8,9 @@ import java.util.List;
 /**
  * 首页轮播图接口响应体.
  */
-public class HomeBannerRsp {
+public class HomeBannerRsp extends ResponseEntity{
 
     @SerializedName("data") private Data mData;
-
-    @SerializedName("status") private Status mStatus;
-
-    public Status getStatus() {
-        return mStatus;
-    }
 
     public Data getData() {
         return mData;
